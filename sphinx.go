@@ -16,13 +16,14 @@ import (
 
 /* searchd command versions */
 const (
-	VER_MAJOR_PROTO        = 0x1
-	VER_COMMAND_SEARCH     = 0x119 // 0x11D for 2.1
-	VER_COMMAND_EXCERPT    = 0x104
-	VER_COMMAND_UPDATE     = 0x102 // 0x103 for 2.1
-	VER_COMMAND_KEYWORDS   = 0x100
-	VER_COMMAND_STATUS     = 0x100
-	VER_COMMAND_FLUSHATTRS = 0x100
+	VER_MAJOR_PROTO      = 0x1
+	VER_COMMAND_SEARCH   = 0x116 // 0x11D for 2.1 0x116 for 1.22
+	VER_COMMAND_EXCERPT  = 0x100
+	VER_COMMAND_UPDATE   = 0x102 // 0x103 for 2.1
+	VER_COMMAND_KEYWORDS = 0x100
+	VER_COMMAND_STATUS   = 0x100
+
+//	VER_COMMAND_FLUSHATTRS = 0x100
 )
 
 /* matching modes */
@@ -45,9 +46,10 @@ const (
 	SPH_RANK_PROXIMITY
 	SPH_RANK_MATCHANY
 	SPH_RANK_FIELDMASK
-	SPH_RANK_SPH04
-	SPH_RANK_EXPR
-	SPH_RANK_TOTAL
+
+	//	SPH_RANK_SPH04
+	//	SPH_RANK_EXPR
+	//	SPH_RANK_TOTAL
 )
 
 /* sorting modes */
@@ -87,9 +89,11 @@ const (
 	SPH_ATTR_BOOL
 	SPH_ATTR_FLOAT
 	SPH_ATTR_BIGINT
-	SPH_ATTR_STRING
-	SPH_ATTR_MULTI   = 0x40000001
-	SPH_ATTR_MULTI64 = 0x40000002
+	//	SPH_ATTR_STRING
+	SPH_ATTR_MULTI = 0x40000000
+
+//	SPH_ATTR_MULTI   = 0x40000001
+//	SPH_ATTR_MULTI64 = 0x40000002
 )
 
 /* searchd commands */
@@ -101,7 +105,8 @@ const (
 	SEARCHD_COMMAND_PERSIST
 	SEARCHD_COMMAND_STATUS
 	SEARCHD_COMMAND_QUERY
-	SEARCHD_COMMAND_FLUSHATTRS
+
+//	SEARCHD_COMMAND_FLUSHATTRS
 )
 
 /* filter types */
@@ -388,7 +393,9 @@ func (sc *Client) SetOverride(attrName string, attrType int, values map[uint64]i
 		return sc
 	}
 	// Min value is 'SPH_ATTR_INTEGER = 1', not '0'.
-	if (attrType < 1 || attrType > SPH_ATTR_STRING) && attrType != SPH_ATTR_MULTI && SPH_ATTR_MULTI != SPH_ATTR_MULTI64 {
+	//	if (attrType < 1 || attrType > SPH_ATTR_STRING) && attrType != SPH_ATTR_MULTI && SPH_ATTR_MULTI != SPH_ATTR_MULTI64 {
+	if (attrType < 1 || attrType > SPH_ATTR_BIGINT) && attrType != SPH_ATTR_MULTI {
+
 		sc.err = fmt.Errorf("SetOverride > invalid attrType: %d", attrType)
 		return sc
 	}
@@ -424,7 +431,7 @@ func (sc *Client) SetMatchMode(mode int) *Client {
 }
 
 func (sc *Client) SetRankingMode(ranker int, rankexpr ...string) *Client {
-	if ranker < 0 || ranker > SPH_RANK_TOTAL {
+	if ranker < 0 || ranker > SPH_RANK_FIELDMASK {
 		sc.err = fmt.Errorf("SetRankingMode > unknown ranker value; use one of the SPH_RANK_xxx constants: %d", ranker)
 		return sc
 	}
@@ -432,7 +439,7 @@ func (sc *Client) SetRankingMode(ranker int, rankexpr ...string) *Client {
 	sc.RankMode = ranker
 
 	if len(rankexpr) > 0 {
-		if ranker != SPH_RANK_EXPR {
+		if true { //ranker != SPH_RANK_EXPR {
 			sc.err = fmt.Errorf("SetRankingMode > rankexpr must used with SPH_RANK_EXPR! ranker: %d  rankexpr: %s", ranker, rankexpr)
 			return sc
 		}
@@ -635,9 +642,9 @@ func (sc *Client) AddQuery(query, index, comment string) (i int, err error) {
 	req = writeInt32ToBytes(req, sc.Limit)
 	req = writeInt32ToBytes(req, sc.MatchMode)
 	req = writeInt32ToBytes(req, sc.RankMode)
-	if sc.RankMode == SPH_RANK_EXPR {
-		req = writeLenStrToBytes(req, sc.RankExpr)
-	}
+	// if sc.RankMode == SPH_RANK_EXPR {
+	// 	req = writeLenStrToBytes(req, sc.RankExpr)
+	// }
 	req = writeInt32ToBytes(req, sc.SortMode)
 	req = writeLenStrToBytes(req, sc.SortBy)
 	req = writeLenStrToBytes(req, query)
@@ -825,8 +832,8 @@ func (sc *Client) RunQueries() (results []Result, err error) {
 						return nil, fmt.Errorf("binary.Read error: %v", err)
 					}
 					match.AttrValues[attrNum] = f
-				case SPH_ATTR_STRING:
-					match.AttrValues[attrNum] = bp.String()
+				// case SPH_ATTR_STRING:
+				// 	match.AttrValues[attrNum] = bp.String()
 				case SPH_ATTR_MULTI: // SPH_ATTR_MULTI is 2^30+1, not an int value.
 					nvals := bp.Int32()
 					var vals = make([]uint32, nvals)
@@ -834,15 +841,15 @@ func (sc *Client) RunQueries() (results []Result, err error) {
 						vals[valNum] = bp.Uint32()
 					}
 					match.AttrValues[attrNum] = vals
-				case SPH_ATTR_MULTI64:
-					nvals := bp.Int32()
-					nvals = nvals / 2
-					var vals = make([]uint64, nvals)
-					for valNum := 0; valNum < nvals; valNum++ {
-						vals[valNum] = uint64(bp.Uint32())
-						bp.Uint32()
-					}
-					match.AttrValues[attrNum] = vals
+				// case SPH_ATTR_MULTI64:
+				// 	nvals := bp.Int32()
+				// 	nvals = nvals / 2
+				// 	var vals = make([]uint64, nvals)
+				// 	for valNum := 0; valNum < nvals; valNum++ {
+				// 		vals[valNum] = uint64(bp.Uint32())
+				// 		bp.Uint32()
+				// 	}
+				// 	match.AttrValues[attrNum] = vals
 				default: // handle everything else as unsigned ints
 					match.AttrValues[attrNum] = bp.Uint32()
 				}
@@ -1183,19 +1190,19 @@ func (sc *Client) Status() (response [][]string, err error) {
 	return response, nil
 }
 
-func (sc *Client) FlushAttributes() (iFlushTag int, err error) {
-	res, err := sc.doRequest(SEARCHD_COMMAND_FLUSHATTRS, VER_COMMAND_FLUSHATTRS, []byte{})
-	if err != nil {
-		return -1, err
-	}
+// func (sc *Client) FlushAttributes() (iFlushTag int, err error) {
+// 	res, err := sc.doRequest(SEARCHD_COMMAND_FLUSHATTRS, VER_COMMAND_FLUSHATTRS, []byte{})
+// 	if err != nil {
+// 		return -1, err
+// 	}
 
-	if len(res) != 4 {
-		return -1, errors.New("FlushAttributes > unexpected response length!")
-	}
+// 	if len(res) != 4 {
+// 		return -1, errors.New("FlushAttributes > unexpected response length!")
+// 	}
 
-	iFlushTag = int(binary.BigEndian.Uint32(res[0:4]))
-	return
-}
+// 	iFlushTag = int(binary.BigEndian.Uint32(res[0:4]))
+// 	return
+// }
 
 func (sc *Client) connect() (err error) {
 	if sc.conn != nil {
@@ -1333,7 +1340,7 @@ func (sc *Client) doRequest(command int, version int, req []byte) (res []byte, e
 		// do nothing
 	case SEARCHD_WARNING:
 		wlen := binary.BigEndian.Uint32(res[0:4])
-		sc.warning = string(res[4:4+wlen])
+		sc.warning = string(res[4 : 4+wlen])
 		res = res[4+wlen:]
 	case SEARCHD_ERROR, SEARCHD_RETRY:
 		wlen := binary.BigEndian.Uint32(res[0:4])
@@ -1383,10 +1390,9 @@ func DegreeToRadian(degree float32) float32 {
 	return degree * math.Pi / 180
 }
 
-
 type byteParser struct {
 	stream []byte
-	p int
+	p      int
 }
 
 func (bp *byteParser) Int32() (i int) {
@@ -1408,7 +1414,7 @@ func (bp *byteParser) Uint64() (i uint64) {
 }
 
 func (bp *byteParser) Float32() (f float32, err error) {
-	buf := bytes.NewBuffer(bp.stream[bp.p : bp.p + 4])
+	buf := bytes.NewBuffer(bp.stream[bp.p : bp.p+4])
 	bp.p += 4
 	if err := binary.Read(buf, binary.BigEndian, &f); err != nil {
 		return 0, err

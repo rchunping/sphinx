@@ -762,7 +762,8 @@ func (sc *Client) RunQueries() (results []Result, err error) {
 	nreqs := len(sc.reqs)
 	var allReqs []byte
 
-	allReqs = writeInt32ToBytes(allReqs, 0) // it's a client
+	// it's ver 1.22
+	// allReqs = writeInt32ToBytes(allReqs, 0) // it's a client
 	allReqs = writeInt32ToBytes(allReqs, nreqs)
 	for _, req := range sc.reqs {
 		allReqs = append(allReqs, req...)
